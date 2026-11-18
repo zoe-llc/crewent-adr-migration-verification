@@ -1,0 +1,33 @@
+name: ADR fixture writer check
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Compare the same writer and commit on both refs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo=$GITHUB_REPOSITORY
+          [[ "$repo" == zoe-llc/crewent-adr-migration-verification ]]
+          locked=$(gh api "repos/$repo/git/ref/heads/adr-pilot" --jq .object.sha)
+          tree=$(gh api "repos/$repo/git/commits/$locked" --jq .tree.sha)
+          next=$(gh api "repos/$repo/git/commits" -f message='Synthetic separate writer probe' -f tree="$tree" -f 'parents[]'="$locked" --jq .sha)
+          control=$(gh api "repos/$repo/git/refs/heads/writer-control" -X PATCH -f sha="$next" --jq .object.sha)
+          test "$control" = "$next"
+          printf 'Control accepted %s\n' "$control"
+          if gh api "repos/$repo/git/refs/heads/adr-pilot" -X PATCH -f sha="$next" > rejected.json 2>&1; then
+            printf 'Protected ref unexpectedly accepted the write\n'
+            exit 1
+          fi
+          cat rejected.json
+          rg -qi 'locked|protected|rule' rejected.json
+          after=$(gh api "repos/$repo/git/ref/heads/adr-pilot" --jq .object.sha)
+          test "$after" = "$locked"
+          printf 'ADR branch rejected the same write and stayed at %s\n' "$after"
