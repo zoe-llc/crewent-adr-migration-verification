@@ -27,7 +27,7 @@ jobs:
             exit 1
           fi
           cat rejected.json
-          rg -qi 'locked|protected|rule' rejected.json
+          grep -Eqi 'locked|protected|rule' rejected.json
           after=$(gh api "repos/$repo/git/ref/heads/adr-pilot" --jq .object.sha)
           test "$after" = "$locked"
           printf 'ADR branch rejected the same write and stayed at %s\n' "$after"
