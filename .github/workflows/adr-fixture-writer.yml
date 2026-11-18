@@ -18,7 +18,8 @@ jobs:
           [[ "$repo" == zoe-llc/crewent-adr-migration-verification ]]
           locked=$(gh api "repos/$repo/git/ref/heads/adr-pilot" --jq .object.sha)
           tree=$(gh api "repos/$repo/git/commits/$locked" --jq .tree.sha)
-          next=$(gh api "repos/$repo/git/commits" -f message='Synthetic separate writer probe' -f tree="$tree" -f 'parents[]'="$locked" --jq .sha)
+          control_before=$(gh api "repos/$repo/git/ref/heads/writer-control" --jq .object.sha)
+          next=$(gh api "repos/$repo/git/commits" -f message='Synthetic separate writer probe' -f tree="$tree" -f 'parents[]'="$control_before" --jq .sha)
           control=$(gh api "repos/$repo/git/refs/heads/writer-control" -X PATCH -f sha="$next" --jq .object.sha)
           test "$control" = "$next"
           printf 'Control accepted %s\n' "$control"
